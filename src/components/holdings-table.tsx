@@ -30,7 +30,7 @@ export function HoldingsTable({ holdings }: { holdings: Holding[] }) {
           </tr>
         </thead>
         <tbody>
-          {holdings.map((h) => {
+          {holdings.map((h, i) => {
             const pnl =
               h.costBasis && h.currentValue
                 ? ((h.currentValue - h.costBasis) / h.costBasis) * 100
@@ -41,7 +41,7 @@ export function HoldingsTable({ holdings }: { holdings: Holding[] }) {
                 : 0;
 
             return (
-              <tr key={h.ticker} className="border-b border-gray-800/50">
+              <tr key={`${h.ticker}-${i}`} className="border-b border-gray-800/50">
                 <td className="py-3 pr-4 font-mono font-semibold">
                   {h.ticker}
                 </td>

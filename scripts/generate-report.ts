@@ -3,6 +3,8 @@ import { eq, desc } from "drizzle-orm";
 import { fetchSecFilings } from "../src/lib/research/sec-filings";
 import { buildCopyContext } from "../src/lib/context/build-context";
 import { nanoid } from "nanoid";
+import { readFileSync } from "fs";
+import { resolve } from "path";
 import { execSync } from "child_process";
 import type {
   HoldingData,
@@ -10,6 +12,15 @@ import type {
   StockNarrative,
   ResearchResult,
 } from "../src/lib/types";
+
+// Load .env.local
+try {
+  const envFile = readFileSync(resolve(process.cwd(), ".env.local"), "utf-8" as BufferEncoding);
+  for (const line of envFile.split("\n")) {
+    const match = line.match(/^([^#=]+)=(.*)$/);
+    if (match) process.env[match[1].trim()] = match[2].trim();
+  }
+} catch {}
 
 async function gatherResearch(
   ticker: string
@@ -136,21 +147,17 @@ async function main() {
   console.log("Generating narratives via claude -p...");
   const prompt = buildMegaPrompt(holdingsData, researchByTicker);
 
-  // Write prompt to a temp file to avoid shell escaping issues
-  const fs = await import("fs");
   const tmpFile = "/tmp/portfolio-prompt.txt";
-  fs.writeFileSync(tmpFile, prompt);
+  const { writeFileSync: writeTmp } = await import("fs");
+  writeTmp(tmpFile, prompt);
 
   let claudeOutput: string;
   try {
-    claudeOutput = execSync(
-      `cat "${tmpFile}" | claude -p --output-format json`,
-      {
-        encoding: "utf-8",
-        timeout: 300000, // 5 min timeout
-        env: { ...process.env, CLAUDECODE: undefined },
-      }
-    );
+    claudeOutput = execSync(`cat "${tmpFile}" | claude -p`, {
+      encoding: "utf-8",
+      timeout: 300000,
+      env: { ...process.env, CLAUDECODE: undefined, ANTHROPIC_API_KEY: undefined },
+    });
   } catch (error) {
     console.error("claude -p failed:", error);
     process.exit(1);
@@ -169,7 +176,6 @@ async function main() {
   };
 
   try {
-    // Extract JSON from the response (claude may include text around it)
     const jsonMatch = claudeOutput.match(/\{[\s\S]*\}/);
     if (!jsonMatch) throw new Error("No JSON found in claude output");
     parsed = JSON.parse(jsonMatch[0]);
@@ -240,16 +246,13 @@ async function main() {
 
   console.log(`Report stored with ID: ${reportId}`);
 
-  // Output the report for email piping
+  // Output the report and context to temp files
+  const { writeFileSync } = await import("fs");
   const emailBody = formatEmailReport(portfolioSummary);
-  const reportOutputPath = "/tmp/portfolio-report.txt";
-  fs.writeFileSync(reportOutputPath, emailBody);
-  console.log(`Report written to ${reportOutputPath}`);
-
-  // Also save the context markdown
-  const contextOutputPath = "/tmp/portfolio-context.md";
-  fs.writeFileSync(contextOutputPath, contextMarkdown);
-  console.log(`Context markdown written to ${contextOutputPath}`);
+  writeFileSync("/tmp/portfolio-report.txt", emailBody);
+  console.log("Report written to /tmp/portfolio-report.txt");
+  writeFileSync("/tmp/portfolio-context.md", contextMarkdown);
+  console.log("Context markdown written to /tmp/portfolio-context.md");
 
   console.log("Done!");
 }
