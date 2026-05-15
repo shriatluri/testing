@@ -21,7 +21,9 @@ export async function fetchAndStoreHoldings(userId: string) {
   const securities = response.data.securities;
   const plaidAccounts = response.data.accounts;
 
-  // Upsert accounts
+  // Build a map of plaidAccountId -> dbAccountId
+  const accountIdMap: Record<string, string> = {};
+
   for (const acct of plaidAccounts) {
     const existing = await db.query.accounts.findFirst({
       where: eq(schema.accounts.plaidAccountId, acct.account_id),
@@ -36,9 +38,11 @@ export async function fetchAndStoreHoldings(userId: string) {
           lastSyncedAt: new Date(),
         })
         .where(eq(schema.accounts.id, existing.id));
+      accountIdMap[acct.account_id] = existing.id;
     } else {
+      const id = nanoid();
       await db.insert(schema.accounts).values({
-        id: nanoid(),
+        id,
         userId,
         plaidAccountId: acct.account_id,
         name: acct.name,
@@ -47,24 +51,19 @@ export async function fetchAndStoreHoldings(userId: string) {
         balanceAvailable: acct.balances.available,
         lastSyncedAt: new Date(),
       });
+      accountIdMap[acct.account_id] = id;
     }
   }
 
   // Store holdings snapshot
-  const holdingsData = plaidHoldings.map((h) => {
+  for (const h of plaidHoldings) {
     const security = securities.find((s) => s.security_id === h.security_id);
-    const account = plaidAccounts.find((a) => a.account_id === h.account_id);
-    const dbAccount = db.query.accounts.findFirst({
-      where: eq(
-        schema.accounts.plaidAccountId,
-        account?.account_id || ""
-      ),
-    });
+    const dbAccountId = accountIdMap[h.account_id] || "";
 
-    return {
+    await db.insert(schema.holdings).values({
       id: nanoid(),
       userId,
-      accountId: "", // will be filled below
+      accountId: dbAccountId,
       ticker: security?.ticker_symbol || "UNKNOWN",
       name: security?.name || "Unknown Security",
       quantity: h.quantity,
@@ -73,25 +72,8 @@ export async function fetchAndStoreHoldings(userId: string) {
       currentValue: h.quantity * (security?.close_price || 0),
       snapshotDate: today,
       createdAt: new Date(),
-      _plaidAccountId: account?.account_id,
-    };
-  });
-
-  // Resolve account IDs and insert
-  for (const holding of holdingsData) {
-    const acct = await db.query.accounts.findFirst({
-      where: eq(
-        schema.accounts.plaidAccountId,
-        holding._plaidAccountId || ""
-      ),
-    });
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const { _plaidAccountId, ...rest } = holding;
-    await db.insert(schema.holdings).values({
-      ...rest,
-      accountId: acct?.id || "",
     });
   }
 
-  return holdingsData.length;
+  return plaidHoldings.length;
 }

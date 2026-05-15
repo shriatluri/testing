@@ -1,17 +1,15 @@
-import { db, schema } from "../src/lib/db";
+import { loadEnv } from "../src/lib/env";
+loadEnv();
+
+import { db } from "../src/lib/db";
 import { fetchAndStoreHoldings } from "../src/lib/plaid/holdings";
 
 async function main() {
   console.log("Syncing holdings from Plaid...");
 
   const user = await db.query.users.findFirst();
-  if (!user) {
-    console.error("No user found. Link a brokerage account first.");
-    process.exit(1);
-  }
-
-  if (!user.plaidAccessToken) {
-    console.error("No Plaid access token. Link a brokerage account first.");
+  if (!user?.plaidAccessToken) {
+    console.error("No user found or no Plaid access token. Link a brokerage account first.");
     process.exit(1);
   }
 
