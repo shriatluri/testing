@@ -48,7 +48,7 @@ function buildMegaPrompt(
     })
     .join("\n\n");
 
-  return `You are a senior equity analyst generating a daily portfolio narrative report.
+  return `You are a senior equity analyst writing a daily portfolio morning brief. It should be a 3-5 minute read — punchy, direct, no filler.
 
 ## Portfolio Holdings
 ${holdingsSection}
@@ -57,17 +57,20 @@ ${holdingsSection}
 ${researchSection}
 
 ## Instructions
-For each stock in the portfolio, generate:
-1. **Narrative State** (2-3 paragraphs): What is the current market story? What are the key drivers?
-2. **Trajectory**: Is the narrative "improving", "stable", or "deteriorating"?
-3. **Signal**: "BUY", "SELL", or "HOLD" — use a balanced approach. Only flag BUY/SELL on clear narrative shifts.
-4. **Signal Rationale**: 1-2 sentences explaining the signal.
+For each holding, generate:
+1. **Narrative** (3-5 sentences max): What is the current market story? Any shifts since last week? Be specific — name the actual drivers, not generic statements.
+2. **Trajectory**: "improving", "stable", or "deteriorating"
+3. **Signal**: "BUY", "SELL", or "HOLD" — only flag BUY/SELL on clear narrative shifts, not noise.
+4. **Signal Rationale** (1-2 sentences): The single most important thing to watch or act on.
 
-Then generate a **Portfolio-Level Analysis** covering:
-- Cross-holding risks and correlations
-- Sector/theme concentration
-- Overall narrative health
-- Key actions to consider
+Then write a **Portfolio-Level Analysis** in this exact structure (plain text, no markdown headers):
+- Concentration Risk: [1-2 sentences on top positions and effective exposure]
+- Sector Exposure: [1-2 sentences on sector breakdown and gaps]
+- Narrative Health Scorecard: list each ticker as Improving / Stable / Deteriorating with its allocation %
+- Key Observation: [1-2 sentences, the single most important portfolio-level insight]
+- Action Items: numbered list, max 3 items, specific and actionable
+
+Keep everything tight. No padding. Write like you're texting a smart friend who owns these stocks.
 
 IMPORTANT: Respond in valid JSON with this exact structure:
 {
@@ -258,24 +261,43 @@ async function main() {
 }
 
 function formatEmailReport(summary: PortfolioSummary): string {
-  const date = summary.generatedAt;
+  const date = new Date(summary.generatedAt).toLocaleDateString("en-US", {
+    month: "long", day: "numeric", year: "numeric",
+  });
 
-  let report = `Portfolio Narrative Report — ${date}\n\n`;
-  report += `Portfolio Value: $${summary.totalValue.toLocaleString("en-US", { minimumFractionDigits: 2 })}\n`;
-  report += `Overall P&L: ${summary.overallPnlPercent > 0 ? "+" : ""}${summary.overallPnlPercent.toFixed(1)}%\n\n`;
-  report += `---\n\n`;
+  const fmt = (n: number) => n.toLocaleString("en-US", { minimumFractionDigits: 2 });
+  const pnlSign = (n: number) => (n >= 0 ? "+" : "");
+
+  let report = `---\n`;
+  report += `Portfolio Narrative Report — ${date}\n\n`;
+  report += `Portfolio Value: $${fmt(summary.totalValue)} | Cost Basis: $${fmt(summary.totalCostBasis)} | Overall P&L: ${pnlSign(summary.overallPnlPercent)}${summary.overallPnlPercent.toFixed(2)}%\n`;
+  report += `---\n`;
 
   for (const n of summary.narratives) {
-    const holding = summary.holdings.find((h) => h.ticker === n.ticker);
-    report += `${n.ticker} — ${n.signal} (${n.trajectory})\n`;
-    if (holding) {
-      report += `Allocation: ${holding.allocationPercent.toFixed(1)}% | P&L: ${holding.pnlPercent !== null ? `${holding.pnlPercent > 0 ? "+" : ""}${holding.pnlPercent.toFixed(1)}%` : "N/A"}\n`;
+    const h = summary.holdings.find((h) => h.ticker === n.ticker);
+    const value = h?.currentValue ? `$${fmt(h.currentValue)}` : "N/A";
+    const alloc = h ? `(${h.allocationPercent.toFixed(1)}%)` : "";
+    const signal = n.signal.padStart(4);
+
+    report += `\n${n.ticker} — ${value} ${alloc}`.padEnd(60) + `${signal}\n`;
+
+    if (h) {
+      const pnlAmt = h.currentValue && h.costBasis ? h.currentValue - h.costBasis : null;
+      const pnlPct = h.pnlPercent;
+      report += `${h.quantity} shares @ ${h.currentPrice ? `$${h.currentPrice.toFixed(2)}` : "N/A"} | Cost: $${h.costBasis ? fmt(h.costBasis) : "N/A"}`;
+      if (pnlAmt !== null && pnlPct !== null) {
+        report += ` | P&L: ${pnlSign(pnlAmt)}$${fmt(Math.abs(pnlAmt))} (${pnlSign(pnlPct)}${pnlPct.toFixed(1)}%)`;
+      }
+      report += `\n`;
     }
+
     report += `\n${n.narrative}\n`;
-    report += `\nRationale: ${n.signalRationale}\n\n---\n\n`;
+    report += `\nRationale: ${n.signalRationale}\n`;
+    report += `\n---\n`;
   }
 
-  report += `PORTFOLIO ANALYSIS\n\n${summary.portfolioAnalysis}\n`;
+  report += `\nPORTFOLIO ANALYSIS\n\n${summary.portfolioAnalysis}\n`;
+  report += `\n---\nTo ask follow-up questions, copy the full context from your dashboard and paste it into any LLM.\n`;
 
   return report;
 }

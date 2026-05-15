@@ -97,45 +97,71 @@ export default async function ReportPage({
         {/* Stock Narratives */}
         <section className="mt-10">
           <h2 className="text-xl font-semibold">Stock Narratives</h2>
-          <div className="mt-4 space-y-6">
+          <div className="mt-4 space-y-4">
             {narratives.map((n) => {
               const holding = summary.holdings.find(
                 (h) => h.ticker === n.ticker
               );
+              const pnlAmt =
+                holding?.currentValue && holding?.costBasis
+                  ? holding.currentValue - holding.costBasis
+                  : null;
+              const fmt = (v: number) =>
+                v.toLocaleString("en-US", { minimumFractionDigits: 2 });
+
               return (
                 <div
                   key={n.id}
                   className="border border-gray-800 rounded-lg p-5"
                 >
-                  <div className="flex justify-between items-start">
-                    <div>
-                      <h3 className="text-lg font-semibold font-mono">
-                        {n.ticker}
-                      </h3>
+                  {/* Header: TICKER — $Value (Alloc%)  SIGNAL */}
+                  <div className="flex justify-between items-center">
+                    <h3 className="text-lg font-semibold font-mono">
+                      {n.ticker}
                       {holding && (
-                        <p className="text-sm text-gray-400 mt-1">
-                          {holding.allocationPercent.toFixed(1)}% allocation
-                          {holding.pnlPercent !== null && (
-                            <span
-                              className={
-                                holding.pnlPercent >= 0
-                                  ? "text-green-400"
-                                  : "text-red-400"
-                              }
-                            >
-                              {" "}
-                              ({holding.pnlPercent > 0 ? "+" : ""}
-                              {holding.pnlPercent.toFixed(1)}%)
-                            </span>
-                          )}
-                        </p>
+                        <span className="text-gray-400 font-normal">
+                          {" "}
+                          — ${holding.currentValue ? fmt(holding.currentValue) : "N/A"}{" "}
+                          ({holding.allocationPercent.toFixed(1)}%)
+                        </span>
                       )}
-                    </div>
+                    </h3>
                     <SignalBadge signal={n.signal as Signal} />
                   </div>
+
+                  {/* Subheader: shares @ price | Cost | P&L */}
+                  {holding && (
+                    <p className="text-sm text-gray-500 mt-1 font-mono">
+                      {holding.quantity} shares
+                      {holding.currentPrice
+                        ? ` @ $${holding.currentPrice.toFixed(2)}`
+                        : ""}
+                      {holding.costBasis
+                        ? ` | Cost: $${fmt(holding.costBasis)}`
+                        : ""}
+                      {pnlAmt !== null && holding.pnlPercent !== null && (
+                        <span
+                          className={
+                            holding.pnlPercent >= 0
+                              ? "text-green-400"
+                              : "text-red-400"
+                          }
+                        >
+                          {" "}
+                          | P&L: {pnlAmt >= 0 ? "+" : "-"}${fmt(Math.abs(pnlAmt))} (
+                          {holding.pnlPercent > 0 ? "+" : ""}
+                          {holding.pnlPercent.toFixed(1)}%)
+                        </span>
+                      )}
+                    </p>
+                  )}
+
+                  {/* Narrative */}
                   <p className="mt-3 text-gray-300 leading-relaxed whitespace-pre-line">
                     {n.narrative}
                   </p>
+
+                  {/* Rationale */}
                   <p className="mt-3 text-sm text-gray-400">
                     <span className="font-medium text-gray-300">
                       Rationale:
