@@ -2,6 +2,8 @@ import { db, schema } from "@/lib/db";
 import { eq } from "drizzle-orm";
 import { notFound } from "next/navigation";
 import Link from "next/link";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 import type { PortfolioSummary, Signal } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
@@ -177,10 +179,15 @@ export default async function ReportPage({
         {/* Portfolio Analysis */}
         <section className="mt-10">
           <h2 className="text-xl font-semibold">Portfolio Analysis</h2>
-          <div className="mt-4 border border-gray-800 rounded-lg p-5">
-            <p className="text-gray-300 leading-relaxed whitespace-pre-line">
-              {summary.portfolioAnalysis}
-            </p>
+          <div className="mt-4 border border-gray-800 rounded-lg p-5 prose prose-invert prose-sm max-w-none
+            prose-headings:text-white prose-headings:font-semibold
+            prose-h3:text-base prose-h3:mt-5 prose-h3:mb-2
+            prose-p:text-gray-300 prose-p:leading-relaxed
+            prose-li:text-gray-300
+            prose-ol:pl-5 prose-ul:pl-5
+            prose-strong:text-white
+            prose-table:text-sm prose-th:text-gray-400 prose-td:text-gray-300">
+            <ReactMarkdown remarkPlugins={[remarkGfm]}>{summary.portfolioAnalysis}</ReactMarkdown>
           </div>
         </section>
       </div>

@@ -36,14 +36,22 @@ For each holding, generate:
 3. **Signal**: "BUY", "SELL", or "HOLD" — only flag BUY/SELL on clear narrative shifts, not noise.
 4. **Signal Rationale**: EXACTLY 1-2 sentences. The single most important thing to watch or act on.
 
-Then write a **Portfolio-Level Analysis** as a SINGLE block of text (no headers, no markdown, just flowing paragraphs) covering:
-- Concentration risk (1-2 sentences)
-- Sector exposure gaps (1-2 sentences)
-- Narrative health scorecard: list tickers as Improving/Stable/Deteriorating with allocation %
-- Key observation (1-2 sentences)
-- Action items: numbered, max 3, specific
+Then write a **Portfolio-Level Analysis** in clean markdown with the following sections:
 
-TOTAL portfolio analysis should be ONE short block — around 10-15 sentences max.
+### Concentration Risk
+1-2 sentences on over-exposure or unhealthy concentration.
+
+### Sector Exposure
+1-2 sentences on gaps or imbalances.
+
+### Narrative Health
+A compact table or bullet list: each ticker with its trajectory (Improving / Stable / Deteriorating) and allocation %.
+
+### Key Observation
+1-2 sentences — the single most important cross-portfolio insight.
+
+### Action Items
+Numbered list, max 3, specific and actionable.
 
 Write like you're texting a smart friend who owns these stocks. Every word must earn its place.
 
@@ -58,6 +66,6 @@ IMPORTANT: Respond ONLY in valid JSON with this exact structure, nothing else:
       "signalRationale": "1-2 sentences only"
     }
   ],
-  "portfolioAnalysis": "single block of text, 10-15 sentences"
+  "portfolioAnalysis": "## Portfolio Analysis\\n\\n### Concentration Risk\\n..."
 }`;
 }
