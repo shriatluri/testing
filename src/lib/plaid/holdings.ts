@@ -1,6 +1,6 @@
 import { plaidClient } from "./client";
 import { db, schema } from "../db";
-import { eq } from "drizzle-orm";
+import { eq, and } from "drizzle-orm";
 import { nanoid } from "nanoid";
 
 export async function fetchAndStoreHoldings(userId: string) {
@@ -54,6 +54,16 @@ export async function fetchAndStoreHoldings(userId: string) {
       accountIdMap[acct.account_id] = id;
     }
   }
+
+  // Clear today's existing snapshot before inserting fresh data
+  await db
+    .delete(schema.holdings)
+    .where(
+      and(
+        eq(schema.holdings.userId, userId),
+        eq(schema.holdings.snapshotDate, today)
+      )
+    );
 
   // Store holdings snapshot
   for (const h of plaidHoldings) {

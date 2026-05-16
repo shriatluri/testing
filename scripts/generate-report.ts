@@ -2,7 +2,7 @@ import { loadEnv } from "../src/lib/env";
 loadEnv();
 
 import { db, schema } from "../src/lib/db";
-import { eq, desc } from "drizzle-orm";
+import { eq, desc, and, gte, lt } from "drizzle-orm";
 import { nanoid } from "nanoid";
 import { writeFileSync } from "fs";
 import { fetchAndStoreHoldings } from "../src/lib/plaid/holdings";
@@ -123,15 +123,39 @@ async function main() {
   // Build context markdown
   const contextMarkdown = buildCopyContext(portfolioSummary);
 
-  // Store report in DB
-  const reportId = nanoid();
-  await db.insert(schema.reports).values({
-    id: reportId,
-    userId: user.id,
-    generatedAt: new Date(),
-    portfolioSummary: JSON.stringify(portfolioSummary),
-    contextMarkdown,
+  // Replace today's report if one already exists
+  const todayStart = new Date();
+  todayStart.setHours(0, 0, 0, 0);
+  const tomorrowStart = new Date(todayStart);
+  tomorrowStart.setDate(tomorrowStart.getDate() + 1);
+
+  const existingReport = await db.query.reports.findFirst({
+    where: and(
+      eq(schema.reports.userId, user.id),
+      gte(schema.reports.generatedAt, todayStart),
+      lt(schema.reports.generatedAt, tomorrowStart)
+    ),
   });
+
+  let reportId: string;
+  if (existingReport) {
+    reportId = existingReport.id;
+    console.log(`Replacing existing report for today (${reportId})...`);
+    await db.delete(schema.stockNarratives).where(eq(schema.stockNarratives.reportId, reportId));
+    await db
+      .update(schema.reports)
+      .set({ generatedAt: new Date(), portfolioSummary: JSON.stringify(portfolioSummary), contextMarkdown })
+      .where(eq(schema.reports.id, reportId));
+  } else {
+    reportId = nanoid();
+    await db.insert(schema.reports).values({
+      id: reportId,
+      userId: user.id,
+      generatedAt: new Date(),
+      portfolioSummary: JSON.stringify(portfolioSummary),
+      contextMarkdown,
+    });
+  }
 
   for (const n of narratives) {
     await db.insert(schema.stockNarratives).values({
