@@ -2,6 +2,7 @@ import { db, schema } from "@/lib/db";
 import { desc, eq } from "drizzle-orm";
 import { HoldingsTable } from "@/components/holdings-table";
 import { ReportCard } from "@/components/report-card";
+import { RunReportButton } from "@/components/run-report-button";
 import Link from "next/link";
 
 export const dynamic = "force-dynamic";
@@ -76,12 +77,15 @@ export default async function DashboardPage() {
       <div className="max-w-4xl mx-auto px-6 py-12">
         <div className="flex justify-between items-center">
           <h1 className="text-3xl font-bold">Dashboard</h1>
-          <Link
-            href="/"
-            className="text-gray-400 hover:text-white text-sm transition-colors"
-          >
-            Home
-          </Link>
+          <div className="flex items-center gap-4">
+            <RunReportButton />
+            <Link
+              href="/"
+              className="text-gray-400 hover:text-white text-sm transition-colors"
+            >
+              Home
+            </Link>
+          </div>
         </div>
 
         {/* Holdings */}
