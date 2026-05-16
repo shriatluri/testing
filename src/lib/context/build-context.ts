@@ -52,10 +52,7 @@ ${n.narrative}
     })
     .join("\n\n---\n\n");
 
-  return `# Portfolio Analysis Context
-
-## System Instructions
-You are a portfolio analyst assistant. The user has shared their full portfolio data and narrative analysis below. Use this to answer follow-up questions about their holdings, risk exposure, and investment decisions. Be specific and reference the data provided. When making recommendations, consider the user's current allocation, cost basis, and narrative trajectory for each position.
+  return `# My Portfolio — ${summary.generatedAt}
 
 ## Portfolio Overview
 - **Total Value:** $${fmt(summary.totalValue)}
