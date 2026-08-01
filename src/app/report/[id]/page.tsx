@@ -48,7 +48,7 @@ export default async function ReportPage({
       <div className="max-w-3xl mx-auto px-6 py-12">
         <div className="flex justify-between items-center">
           <Link
-            href="/dashboard"
+            href="/"
             className="text-gray-400 hover:text-white text-sm transition-colors"
           >
             &larr; Dashboard
